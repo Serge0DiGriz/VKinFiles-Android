@@ -6,7 +6,6 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 
 public class PageFragment extends Fragment {
     private int pageNumber;
@@ -44,7 +43,6 @@ public class PageFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View result=inflater.inflate(R.layout.fragment_page, container, false);
-        ((TextView)result.findViewById(R.id.displayText)).setText(getTitle(pageNumber));
         return result;
     }
 

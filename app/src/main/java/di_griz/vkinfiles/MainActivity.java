@@ -6,8 +6,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.support.annotation.Nullable;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
@@ -18,9 +22,18 @@ import android.view.WindowManager;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.IOException;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
 public class MainActivity extends AppCompatActivity {
 
-    public static int vkUserId;
+    static int vkUserId;
+    static String token, versionAPI;
     SharedPreferences vkSettings;
     private ViewPager pager;
 
@@ -31,10 +44,11 @@ public class MainActivity extends AppCompatActivity {
         vkSettings = getSharedPreferences("vkSettings", MODE_PRIVATE);
         vkUserId = vkSettings.getInt("userID", -1);
 
-        Log.d("Auth", "User ID: " + vkUserId);
         if (vkUserId == -1) setVkUserId();
         else inLogin();
     }
+
+
 
     private boolean isOnline() {
         ConnectivityManager cm = (ConnectivityManager)
@@ -88,6 +102,8 @@ public class MainActivity extends AppCompatActivity {
             });
     }
 
+
+
     private void inLogin() {
         setContentView(R.layout.activity_main);
 
@@ -96,6 +112,16 @@ public class MainActivity extends AppCompatActivity {
         pager.setCurrentItem(1);
 
         Log.d("Auth", "User ID: " + vkUserId);
+
+        Resources res = getResources();
+        versionAPI = res.getString(R.string.API_V);
+        token = res.getString(R.string.TOKEN);
+
+        Retrofit retrofit = new Retrofit.Builder().baseUrl("https://api.vk.com")
+                .addConverterFactory(GsonConverterFactory.create()).build();
+
+        VkService vk = retrofit.create(VkService.class);
+        new UpdatingDataBase().execute(vk);
     }
 
 }
