@@ -34,6 +34,8 @@ public class MainActivity extends AppCompatActivity {
 
     static int vkUserId;
     static String token, versionAPI;
+    SQLiteDatabase userDB;
+
     SharedPreferences vkSettings;
     private ViewPager pager;
 
@@ -117,11 +119,14 @@ public class MainActivity extends AppCompatActivity {
         versionAPI = res.getString(R.string.API_V);
         token = res.getString(R.string.TOKEN);
 
+        SQLiteHelper helper = new SQLiteHelper(this);
+        userDB = helper.getWritableDatabase();
+
         Retrofit retrofit = new Retrofit.Builder().baseUrl("https://api.vk.com")
                 .addConverterFactory(GsonConverterFactory.create()).build();
-
         VkService vk = retrofit.create(VkService.class);
-        new UpdatingDataBase().execute(vk);
+
+        new UpdatingDataBase().execute(vk, userDB);
     }
 
 }

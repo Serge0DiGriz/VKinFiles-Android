@@ -1,9 +1,11 @@
 package di_griz.vkinfiles;
 
+import java.util.List;
+
 class GetHistoryResponse {
     class Response {
         int count;
-        Message[] items;
+        List<Message> items;
     }
 
     Response response;
