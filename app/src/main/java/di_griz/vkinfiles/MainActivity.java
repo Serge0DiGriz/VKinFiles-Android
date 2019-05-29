@@ -2,31 +2,23 @@ package di_griz.vkinfiles;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteException;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
-import android.support.annotation.Nullable;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Window;
-import android.view.WindowManager;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ListAdapter;
+import android.widget.SimpleCursorAdapter;
 
-import java.io.IOException;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -37,7 +29,11 @@ public class MainActivity extends AppCompatActivity {
     SQLiteDatabase userDB;
 
     SharedPreferences vkSettings;
-    private ViewPager pager;
+
+    static ItemCursorAdapter photoAdapter;
+    static ItemCursorAdapter audioAdapter;
+    static ItemCursorAdapter docAdapter;
+    static ListAdapter emptyAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private void showConnectionError(DialogInterface.OnClickListener listener) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         Dialog dialog = builder.setTitle("Connection error!")
-                .setMessage("Please, check your internet connection and try again.")
+                .setMessage("Нет соединения, проверьте подключение к интернету и попробуйте снова.")
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setPositiveButton("OK", listener)
                 .create();
@@ -109,8 +105,21 @@ public class MainActivity extends AppCompatActivity {
     private void inLogin() {
         setContentView(R.layout.activity_main);
 
-        pager = findViewById(R.id.pager);
-        pager.setAdapter(new MyAdapter(getSupportFragmentManager()));
+        SQLiteHelper helper = new SQLiteHelper(this);
+        userDB = helper.getWritableDatabase();
+
+        photoAdapter = new ItemCursorAdapter(this, userDB.query(SQLiteHelper.TABLE_NAME,
+                null, SQLiteHelper.COLUMN_TYPE + " = ?", new String[]{"photo"},
+                null, null, null), 0);
+        audioAdapter = new ItemCursorAdapter(this, userDB.query(SQLiteHelper.TABLE_NAME,
+                null, "type = ? or type = ?", new String[]{"audio", "link"},
+                null, null, null), 0);
+        docAdapter = new ItemCursorAdapter(this, userDB.query(SQLiteHelper.TABLE_NAME,
+                null, SQLiteHelper.COLUMN_TYPE + " = ?", new String[]{"doc"},
+                null, null, null), 0);
+
+        ViewPager pager = findViewById(R.id.pager);
+        pager.setAdapter(new PageAdapter(getSupportFragmentManager()));
         pager.setCurrentItem(1);
 
         Log.d("Auth", "User ID: " + vkUserId);
@@ -119,14 +128,14 @@ public class MainActivity extends AppCompatActivity {
         versionAPI = res.getString(R.string.API_V);
         token = res.getString(R.string.TOKEN);
 
-        SQLiteHelper helper = new SQLiteHelper(this);
-        userDB = helper.getWritableDatabase();
-
         Retrofit retrofit = new Retrofit.Builder().baseUrl("https://api.vk.com")
                 .addConverterFactory(GsonConverterFactory.create()).build();
         VkService vk = retrofit.create(VkService.class);
 
-        new UpdatingDataBase().execute(vk, userDB);
+        ProgressDialog progressDialog = ProgressDialog.show(this, "Loading...",
+                "Идёт обновление базы данных, пожалуйста, подождите");
+
+        new UpdatingDataBase().execute(vk, userDB, progressDialog);
     }
 
 }

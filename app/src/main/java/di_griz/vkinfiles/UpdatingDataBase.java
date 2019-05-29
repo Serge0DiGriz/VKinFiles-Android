@@ -1,5 +1,6 @@
 package di_griz.vkinfiles;
 
+import android.app.ProgressDialog;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -15,10 +16,12 @@ import retrofit2.Call;
 public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
     private  VkService vk;
     SQLiteDatabase db;
+    ProgressDialog progressDialog;
 
     @Override
     protected Boolean doInBackground(Object... args) {
         vk = (VkService)args[0];
+        progressDialog = (ProgressDialog)args[2];
 
         int count = getCountMessages();
         Log.d("DataBase", "Count Messages: " + count);
@@ -174,10 +177,16 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
     protected void onPostExecute(Boolean aBoolean) {
         super.onPostExecute(aBoolean);
 
-        Cursor cursor = db.query(SQLiteHelper.TABLE_NAME,
-                new String[]{SQLiteHelper.COLUMN_ID},
-                null, null, null, null, null);
-        Log.d("DataBase", "Row count: " + cursor.getCount());
-        cursor.close();
+        MainActivity.docAdapter.changeCursor(db.query(SQLiteHelper.TABLE_NAME, null,
+                SQLiteHelper.COLUMN_TYPE + " = ?", new String[]{"doc"},
+                null, null, null));
+        MainActivity.audioAdapter.changeCursor(db.query(SQLiteHelper.TABLE_NAME, null,
+                "type = ? or type = ?", new String[]{"audio", "link"},
+                null, null, null));
+        MainActivity.photoAdapter.changeCursor(db.query(SQLiteHelper.TABLE_NAME, null,
+                SQLiteHelper.COLUMN_TYPE + " = ?", new String[]{"photo"},
+                null, null, null));
+
+        progressDialog.dismiss();
     }
 }
