@@ -3,7 +3,6 @@ package di_griz.vkinfiles;
 import android.app.ProgressDialog;
 import android.content.ContentValues;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.util.Log;
 

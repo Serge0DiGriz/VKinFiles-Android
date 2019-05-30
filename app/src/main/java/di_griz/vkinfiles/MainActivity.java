@@ -122,7 +122,14 @@ public class MainActivity extends AppCompatActivity {
 
             if (cursor != null) {
                 Log.d("Download", "Count: " + cursor.getCount());
-                new Thread(new Downloading(cursor)).start();
+                if (isExternalStorageWritable()) {
+                    File dir = new File(Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_DOWNLOADS), "VK in Files");
+                    new Thread(new Downloading(cursor, dir)).start();
+                } else
+                    Toast.makeText(this, "Для выполнения этой операции необходимо " +
+                            "отключить устройство от компьютера", Toast.LENGTH_LONG).show();
+
             }
         }
 
@@ -137,6 +144,13 @@ public class MainActivity extends AppCompatActivity {
         NetworkInfo netInfo = cm.getActiveNetworkInfo();
         return (netInfo != null && netInfo.isConnected());
     }
+
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        return Environment.MEDIA_MOUNTED.equals(state);
+    }
+
+
 
     private void showConnectionError(DialogInterface.OnClickListener listener) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -232,12 +246,16 @@ public class MainActivity extends AppCompatActivity {
         new UpdatingDataBase().execute(vk, progressDialog);
     }
 
+
+
     class Downloading implements Runnable {
         Cursor cursor;
+        File downloadingDir;
 
-        Downloading(Cursor cursor) {
+        Downloading(Cursor cursor, File downloadingDir) {
             this.cursor = cursor;
             if (cursor.getCount() != 0)
+                this.downloadingDir = downloadingDir;
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -253,15 +271,26 @@ public class MainActivity extends AppCompatActivity {
                 String type = cursor.getString(cursor.getColumnIndex(SQLiteHelper.COLUMN_TYPE)),
                         title = cursor.getString(cursor.getColumnIndex(SQLiteHelper.COLUMN_TITLE)),
                         url = cursor.getString(cursor.getColumnIndex(SQLiteHelper.COLUMN_URL));
+                DownloadThread thread;
 
-                DownloadThread thread = new DownloadThread(getApplicationContext(), type, title, url);
-                thread.start();
-                if (DownloadThread.counter > 13)
-                    try {
-                        thread.join();
-                    } catch (InterruptedException error) {
-                        Log.e("Files", error.getMessage());
-                    }
+                if (type.equals("link")) {
+                    Log.d("Download", "Playlist");
+                } else {
+                    File dir = new File(downloadingDir, type);
+                    if (dir.mkdirs())
+                        Log.d("Download", "MakeDir " + dir.getPath());
+
+                    thread = new DownloadThread(getBaseContext(),
+                            new File(dir, title), url);
+                    thread.start();
+
+                    if (DownloadThread.counter > 13)
+                        try {
+                            thread.join();
+                        } catch (InterruptedException error) {
+                            Log.e("Files", error.getMessage());
+                        }
+                }
             }
             cursor.close();
         }
