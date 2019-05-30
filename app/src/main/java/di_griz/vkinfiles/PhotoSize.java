@@ -1,6 +1,6 @@
 package di_griz.vkinfiles;
 
-public class PhotoSize {
+class PhotoSize {
     String url;
     int width, height;
 }
