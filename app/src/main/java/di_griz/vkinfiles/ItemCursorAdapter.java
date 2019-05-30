@@ -57,15 +57,13 @@ public class ItemCursorAdapter extends CursorAdapter {
                         .open("document.png"), null);
             else if (type.equals("photo"))
                 draw = Drawable.createFromStream(context.getAssets()
-                        .open("icon.png"), null);
+                        .open("image.png"), null);
             else
                 draw = context.getResources().getDrawable(R.mipmap.ic_launcher);
         } catch (IOException error) {
             draw = context.getResources().getDrawable(R.mipmap.ic_launcher);
         }
-
         holder.imageView.setImageDrawable(draw);
     }
-
 
 }
