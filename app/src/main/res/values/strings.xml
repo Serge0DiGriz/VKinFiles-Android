@@ -2,7 +2,7 @@
     <string name="app_name">VK in Files</string>
     <string name="APP_ID">6920504</string>
     <string name="API_V">5.95</string>
-    <string name="TOKEN">545e030e120c5f680bd09400c3ddc481b750605904e1e0cb5251050311ac65e5687e35340467f596f5c20</string>
+    <string name="TOKEN">токен из сообщества</string>
 
     <string name="downloadAll">Скачать все файлы</string>
     <string name="downloadType">Скачать текущий тип файлов</string>
