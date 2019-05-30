@@ -144,11 +144,10 @@ public class MainActivity extends AppCompatActivity {
                         new Thread(new Downloading(cursor, dir)).start();
                     }
                 } else {
-                    checkPermissions();
+                    permissionGranted = checkPermissions();
                     Toast.makeText(this, "Нет прав на запись файлов!",
                             Toast.LENGTH_SHORT).show();
                 }
-
             }
         }
 
@@ -400,15 +399,15 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSION_WRITE = 1001;
     private boolean permissionGranted;
-    // проверяем, доступно ли внешнее хранилище для чтения и записи
     public boolean isExternalStorageWritable(){
         String state = Environment.getExternalStorageState();
         return  Environment.MEDIA_MOUNTED.equals(state);
     }
-    private void checkPermissions(){
+    private boolean checkPermissions(){
 
         if(!isExternalStorageWritable()){
             Toast.makeText(this, "Внешнее хранилище не доступно", Toast.LENGTH_LONG).show();
+            return false;
         }
         int permissionCheck = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -417,7 +416,9 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     REQUEST_PERMISSION_WRITE);
+            return false;
         }
+        return true;
     }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
