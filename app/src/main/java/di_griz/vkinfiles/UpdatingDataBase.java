@@ -15,13 +15,12 @@ import retrofit2.Call;
 
 public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
     private  VkService vk;
-    SQLiteDatabase db;
-    ProgressDialog progressDialog;
+    private ProgressDialog progressDialog;
 
     @Override
     protected Boolean doInBackground(Object... args) {
         vk = (VkService)args[0];
-        progressDialog = (ProgressDialog)args[2];
+        progressDialog = (ProgressDialog)args[1];
 
         int count = getCountMessages();
         Log.d("DataBase", "Count Messages: " + count);
@@ -29,8 +28,7 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
         if (count == -1)
             return false;
 
-        db = (SQLiteDatabase)args[1];
-        Cursor cursor = db.query(SQLiteHelper.TABLE_NAME,
+        Cursor cursor = MainActivity.userDB.query(SQLiteHelper.TABLE_NAME,
                 new String[]{SQLiteHelper.COLUMN_MESSAGE_ID},
                 null, null, null, null, null);
 
@@ -122,7 +120,7 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
                 } else
                     if (type.equals("audio")) {
                     Audio audio = attachment.audio;
-                    title = titleCorrecting(audio.title);
+                    title = titleCorrecting(audio.title) + ".mp3";
                     url = audio.url;
                 } else
                     if (type.equals("doc")) {
@@ -141,7 +139,7 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
                 if (title != null) {
                     values.put(SQLiteHelper.COLUMN_TITLE, title);
                     values.put(SQLiteHelper.COLUMN_URL, url);
-                    db.insert(SQLiteHelper.TABLE_NAME, null, values);
+                    MainActivity.userDB.insert(SQLiteHelper.TABLE_NAME, null, values);
                 }
             }
         }
@@ -177,15 +175,15 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
     protected void onPostExecute(Boolean aBoolean) {
         super.onPostExecute(aBoolean);
 
-        MainActivity.docAdapter.changeCursor(db.query(SQLiteHelper.TABLE_NAME, null,
-                SQLiteHelper.COLUMN_TYPE + " = ?", new String[]{"doc"},
-                null, null, null));
-        MainActivity.audioAdapter.changeCursor(db.query(SQLiteHelper.TABLE_NAME, null,
-                "type = ? or type = ?", new String[]{"audio", "link"},
-                null, null, null));
-        MainActivity.photoAdapter.changeCursor(db.query(SQLiteHelper.TABLE_NAME, null,
-                SQLiteHelper.COLUMN_TYPE + " = ?", new String[]{"photo"},
-                null, null, null));
+        MainActivity.docAdapter.changeCursor(MainActivity.userDB.rawQuery(
+                "SELECT * FROM " + SQLiteHelper.TABLE_NAME + " WHERE " +
+                        SQLiteHelper.COLUMN_TYPE + " IN ('doc')", null));
+        MainActivity.audioAdapter.changeCursor(MainActivity.userDB.rawQuery(
+                "SELECT * FROM " + SQLiteHelper.TABLE_NAME + " WHERE " +
+                        SQLiteHelper.COLUMN_TYPE + " IN ('audio', 'link')", null));
+        MainActivity.photoAdapter.changeCursor(MainActivity.userDB.rawQuery(
+                "SELECT * FROM " + SQLiteHelper.TABLE_NAME + " WHERE " +
+                        SQLiteHelper.COLUMN_TYPE + " IN ('photo')", null));
 
         progressDialog.dismiss();
     }

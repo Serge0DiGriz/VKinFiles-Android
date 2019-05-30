@@ -25,9 +25,17 @@ public interface VkService {
                                         @Query("v") String v);
 
     @GET("/method/messages.send")
-    Call<SendResponse> send(@Query("user_id") int user_id,
-                            @Query("attachment") String attachment,
-                            @Query("access_token") String access_token,
-                            @Query("v") String v);
+    Call<SendResponse> sendAttachments(@Query("user_id") int user_id,
+                                       @Query("attachment") String attachments,
+                                       @Query("random_id") int random_id,
+                                       @Query("access_token") String access_token,
+                                       @Query("v") String v);
+
+    @GET("/method/messages.send")
+    Call<SendResponse> sendMessage(@Query("user_id") int user_id,
+                                   @Query("message") String message,
+                                   @Query("random_id") int random_id,
+                                   @Query("access_token") String access_token,
+                                   @Query("v") String v);
 
 }

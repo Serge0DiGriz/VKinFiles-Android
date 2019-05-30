@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/downloadAll"
+        android:orderInCategory="0"
+        android:title="@string/downloadAll" />
+
+    <item
+        android:id="@+id/downloadType"
+        android:orderInCategory="1"
+        android:title="@string/downloadType" />
+
+    <item
+        android:id="@+id/downloadSelected"
+        android:orderInCategory="2"
+        android:title="@string/downloadSelected" />
+
+</menu>
