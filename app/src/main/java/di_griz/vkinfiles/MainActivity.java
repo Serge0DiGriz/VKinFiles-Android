@@ -1,17 +1,22 @@
 package di_griz.vkinfiles;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Environment;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -23,10 +28,16 @@ import android.webkit.WebViewClient;
 import android.widget.ListAdapter;
 import android.widget.Toast;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 
+import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -122,13 +133,21 @@ public class MainActivity extends AppCompatActivity {
 
             if (cursor != null) {
                 Log.d("Download", "Count: " + cursor.getCount());
-                if (isExternalStorageWritable()) {
-                    File dir = new File(Environment.getExternalStoragePublicDirectory(
-                            Environment.DIRECTORY_DOWNLOADS), "VK in Files");
-                    new Thread(new Downloading(cursor, dir)).start();
-                } else
-                    Toast.makeText(this, "Для выполнения этой операции необходимо " +
-                            "отключить устройство от компьютера", Toast.LENGTH_LONG).show();
+                if (permissionGranted) {
+                    if (cursor.getCount() != 0) {
+                        File dir = new File(Environment.getExternalStoragePublicDirectory(
+                                Environment.DIRECTORY_DOWNLOADS), "VK in Files");
+
+                        progressDialog = ProgressDialog.show(this, "Downloading...",
+                                "Ваши файлы скачиваются, подождите");
+
+                        new Thread(new Downloading(cursor, dir)).start();
+                    }
+                } else {
+                    checkPermissions();
+                    Toast.makeText(this, "Нет прав на запись файлов!",
+                            Toast.LENGTH_SHORT).show();
+                }
 
             }
         }
@@ -143,11 +162,6 @@ public class MainActivity extends AppCompatActivity {
                 getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo netInfo = cm.getActiveNetworkInfo();
         return (netInfo != null && netInfo.isConnected());
-    }
-
-    public boolean isExternalStorageWritable() {
-        String state = Environment.getExternalStorageState();
-        return Environment.MEDIA_MOUNTED.equals(state);
     }
 
 
@@ -187,9 +201,10 @@ public class MainActivity extends AppCompatActivity {
                                 try {
                                     String message = "Благодарим Вас за установку приложения.\n" +
                                             "В приложении будут отображаться вложения, отправленные в беседу сообщества, " +
-                                            "и именно их Вы сможете скачать на своё устройство.\n" +
+                                            "и именно их Вы сможете скачать на своё устройство. " +
+                                            "Скачанные файлы Вы найдёте в папке «Download/VK in Files»" +
                                             "Также рекомендуем отключить уведомления о новых сообщениях.";
-                                    vk.sendMessage(vkUserId, message, 0, token, versionAPI).execute();
+                                    vk.sendMessage(vkUserId, message, 1, token, versionAPI).execute();
                                 } catch (IOException error) {
                                     Log.e("VK_API", error.getMessage());
                                 }
@@ -240,13 +255,13 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d("Auth", "User ID: " + vkUserId);
 
-        ProgressDialog progressDialog = ProgressDialog.show(this, "Loading...",
-                "Идёт обновление базы данных, пожалуйста, подождите");
-
-        new UpdatingDataBase().execute(vk, progressDialog);
+        new UpdatingDataBase().execute(vk, ProgressDialog.show(this, "Loading...",
+                "Идёт обновление базы данных, пожалуйста, подождите"));
     }
 
 
+
+    private static ProgressDialog progressDialog = null;
 
     class Downloading implements Runnable {
         Cursor cursor;
@@ -254,19 +269,12 @@ public class MainActivity extends AppCompatActivity {
 
         Downloading(Cursor cursor, File downloadingDir) {
             this.cursor = cursor;
-            if (cursor.getCount() != 0)
-                this.downloadingDir = downloadingDir;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(),
-                                "Скачивание началось...", Toast.LENGTH_LONG).show();
-                    }
-                });
+            this.downloadingDir = downloadingDir;
         }
 
         @Override
         public void run() {
+            DownloadThread.counter++;
             while (cursor.moveToNext()) {
                 String type = cursor.getString(cursor.getColumnIndex(SQLiteHelper.COLUMN_TYPE)),
                         title = cursor.getString(cursor.getColumnIndex(SQLiteHelper.COLUMN_TITLE)),
@@ -274,17 +282,77 @@ public class MainActivity extends AppCompatActivity {
                 DownloadThread thread;
 
                 if (type.equals("link")) {
-                    Log.d("Download", "Playlist");
+                    try {
+                        Document html = Jsoup.connect(url).get();
+                        StringBuilder audioIds = new StringBuilder();
+                        StringBuilder messageIds = new StringBuilder();
+                        int counter = 0;
+                        for (Element item: html.select("div.audio_item")) {
+                            audioIds.append(item.id().substring(0, item.id().indexOf("_playlist")));
+                            audioIds.append(",");
+                            if (++counter == 10) {
+                                audioIds.deleteCharAt(audioIds.length()-1);
+                                SendResponse response = vk.sendAttachments(
+                                        vkUserId, audioIds.toString(), 0,
+                                        token, versionAPI).execute().body();
+                                if (response != null) {
+                                    messageIds.append(response.response);
+                                    messageIds.append(",");
+                                }
+
+                                counter = 0; audioIds.delete(0, audioIds.length());
+                            }
+                        }
+                        if (counter != 0) {
+                            audioIds.deleteCharAt(audioIds.length()-1);
+                            SendResponse response = vk.sendAttachments(
+                                    vkUserId, audioIds.toString(), 0,
+                                    token, versionAPI).execute().body();
+                            if (response != null) {
+                                messageIds.append(response.response);
+                                messageIds.append(",");
+                            }
+                        }
+                        messageIds.deleteCharAt(messageIds.length()-1);
+
+                        GetByIdResponse response = vk.getById(messageIds.toString(),
+                                token, versionAPI).execute().body();
+                        LinkedList<Attachment> attachments = new LinkedList<>();
+                        if (response != null)
+                            for (Message message: response.response.items)
+                                attachments.addAll(Arrays.asList(message.attachments));
+
+                        vk.delete(messageIds.toString(), 1, token, versionAPI).execute();
+
+                        for (Attachment attachment: attachments) {
+                            Audio audio = attachment.audio;
+                            File dir = new File(downloadingDir, "audio/"+title);
+                            if (dir.mkdirs())
+                                Log.d("Download", "MakeDir " + dir.getPath());
+
+                            thread = new DownloadThread(new File(dir,
+                                    MainActivity.titleCorrecting(audio.title)+".mp3"), audio.url);
+                            thread.start();
+
+                            if (DownloadThread.counter > 7)
+                                try {
+                                    thread.join();
+                                } catch (InterruptedException error) {
+                                    Log.e("Files", error.getMessage());
+                                }
+                        }
+                    } catch (Exception error) {
+                        Log.e("Download", error.getMessage());
+                    }
                 } else {
                     File dir = new File(downloadingDir, type);
                     if (dir.mkdirs())
-                        Log.d("Download", "MakeDir " + dir.getPath());
+                        Log.d("Files", "MakeDir " + dir.getPath());
 
-                    thread = new DownloadThread(getBaseContext(),
-                            new File(dir, title), url);
+                    thread = new DownloadThread(new File(dir, title), url);
                     thread.start();
 
-                    if (DownloadThread.counter > 13)
+                    if (DownloadThread.counter > 7)
                         try {
                             thread.join();
                         } catch (InterruptedException error) {
@@ -292,7 +360,71 @@ public class MainActivity extends AppCompatActivity {
                         }
                 }
             }
+            DownloadThread.counter--;
+            onDownloadingFinish();
             cursor.close();
+        }
+    }
+
+    static void onDownloadingFinish() {
+        if (DownloadThread.counter == 0 && MainActivity.progressDialog != null)
+            progressDialog.dismiss();
+    }
+
+    static String titleCorrecting(String title) {
+        StringBuilder correct = new StringBuilder();
+        for (char symbol: title.trim().toCharArray()) {
+            switch (symbol) {
+                case '/': correct.append('¦'); break;
+                case '\\': correct.append('¦'); break;
+                case '|': correct.append('¦'); break;
+                case ':': correct.append('¦'); break;
+                case '<': correct.append('«'); break;
+                case '>': correct.append('»'); break;
+                case '"': correct.append('\''); break;
+                case '*': correct.append('×'); break;
+                case '?': correct.append('‽'); break;
+                case '!': correct.append('‽'); break;
+                case '%': correct.append('‰'); break;
+                case '@': correct.append('©'); break;
+                case '+': correct.append('±'); break;
+
+                default: correct.append(symbol);
+            }
+        }
+
+        return correct.toString();
+    }
+
+
+
+    private static final int REQUEST_PERMISSION_WRITE = 1001;
+    private boolean permissionGranted;
+    // проверяем, доступно ли внешнее хранилище для чтения и записи
+    public boolean isExternalStorageWritable(){
+        String state = Environment.getExternalStorageState();
+        return  Environment.MEDIA_MOUNTED.equals(state);
+    }
+    private void checkPermissions(){
+
+        if(!isExternalStorageWritable()){
+            Toast.makeText(this, "Внешнее хранилище не доступно", Toast.LENGTH_LONG).show();
+        }
+        int permissionCheck = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if(permissionCheck != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQUEST_PERMISSION_WRITE);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults){
+        if (requestCode == REQUEST_PERMISSION_WRITE){
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                permissionGranted = true;
         }
     }
 

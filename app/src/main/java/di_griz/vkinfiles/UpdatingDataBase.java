@@ -119,7 +119,7 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
                 } else
                     if (type.equals("audio")) {
                     Audio audio = attachment.audio;
-                    title = titleCorrecting(audio.title) + ".mp3";
+                    title = MainActivity.titleCorrecting(audio.title) + ".mp3";
                     url = audio.url;
                 } else
                     if (type.equals("doc")) {
@@ -132,7 +132,7 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
                         Link link = attachment.link;
                         url = link.url;
                         if (url.contains("audio_playlist"))
-                            title = titleCorrecting(link.title);
+                            title = MainActivity.titleCorrecting(link.title);
                     }
 
                 if (title != null) {
@@ -144,30 +144,6 @@ public class UpdatingDataBase extends AsyncTask<Object, Integer, Boolean> {
         }
     }
 
-    private String titleCorrecting(String title) {
-        StringBuilder correct = new StringBuilder();
-        for (char symbol: title.trim().toCharArray()) {
-            switch (symbol) {
-                case '/': correct.append('¦'); break;
-                case '\\': correct.append('¦'); break;
-                case '|': correct.append('¦'); break;
-                case ':': correct.append('¦'); break;
-                case '<': correct.append('«'); break;
-                case '>': correct.append('»'); break;
-                case '"': correct.append('\''); break;
-                case '*': correct.append('×'); break;
-                case '?': correct.append('‽'); break;
-                case '!': correct.append('‽'); break;
-                case '%': correct.append('‰'); break;
-                case '@': correct.append('©'); break;
-                case '+': correct.append('±'); break;
-
-                default: correct.append(symbol);
-            }
-        }
-
-        return correct.toString();
-    }
 
 
     @Override

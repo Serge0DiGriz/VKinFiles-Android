@@ -1,5 +1,5 @@
 package di_griz.vkinfiles;
 
-public class SendResponse {
+class SendResponse {
     int response;
 }
